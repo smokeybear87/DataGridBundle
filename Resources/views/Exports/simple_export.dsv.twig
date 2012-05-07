@@ -1,0 +1,20 @@
+{# --------------------------------------------------- grid_titles -------------------------------------------------- #}
+{% if grid.isTitleSectionVisible %}
+    {%- for column in grid.columns %}
+        {%- if column.visible(grid.isReadyForExport) -%}
+            {% set columnTitle = grid.prefixTitle ~ column.title %}
+            {{- columnTitle|trans ~ export.delimiter -}}
+        {%- endif -%}
+    {%- endfor %}
+{% endif %}
+{# --------------------------------------------------- grid_rows -------------------------------------------------- #}
+
+{% for row in grid.rows %}
+    {% for column in grid.columns %}
+        {%- if column.visible(grid.isReadyForExport) -%}
+            {{- row.field(column.id) ~ export.delimiter -}}
+        {%- endif -%}
+    {% endfor %}
+{% else %}
+No result
+{% endfor %}

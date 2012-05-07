@@ -16,6 +16,7 @@
         <parameter key="grid.column.boolean.class">Sorien\DataGridBundle\Grid\Column\BooleanColumn</parameter>
         <parameter key="grid.column.sourceselect.class">Sorien\DataGridBundle\Grid\Column\SourceSelectColumn</parameter>
         <parameter key="grid.column.array.class">Sorien\DataGridBundle\Grid\Column\ArrayColumn</parameter>
+        <parameter key="grid.export.twig_extension.class">Sorien\DataGridBundle\Twig\ExportExtension</parameter>
     </parameters>
 
     <services>
@@ -81,5 +82,8 @@
             </call>
         </service>
 
+        <service id="grid.export.twig_extension" class="%grid.export.twig_extension.class%" public="false">
+            <tag name="twig.extension" />
+        </service>
     </services>
 </container>

@@ -45,7 +45,7 @@ class DataGridExtension extends \Twig_Extension
     /**
      * @var array
      */
-    protected $params;
+    protected $params = array();
 
     public function __construct($router)
     {
@@ -76,9 +76,28 @@ class DataGridExtension extends \Twig_Extension
             'grid_cell'         => new \Twig_Function_Method($this, 'getGridCell', array('is_safe' => array('html'))),
             'grid_no_data'      => new \Twig_Function_Method($this, 'getGridNoData', array('is_safe' => array('html'))),
             'grid_no_result'    => new \Twig_Function_Method($this, 'getGridNoResult', array('is_safe' => array('html'))),
+            'grid_exports'      => new \Twig_Function_Method($this, 'getGridExports', array('is_safe' => array('html'))),
+        );
+    }
+/*
+    public function getFilters()
+    {
+        return array(
+                'convertHTMLtoDSV' => new \Twig_Filter_Method($this, 'convertHTMLtoDSV'),
         );
     }
 
+    public function convertHTMLtoDSV($value)
+    {
+        $value = trim($value);
+        $value = preg_replace('/>[\s\n\t\r]*</', '><', $value);
+        $value = str_replace('</th>', '</th>;', $value);
+        $value = str_replace('</td>', '</td>;', $value);
+        $value = str_replace('</tr>', "</tr>\n", $value);
+        $value = strip_tags($value);
+        return $value;
+    }
+*/
     /**
      * Render grid block
      *
@@ -90,6 +109,12 @@ class DataGridExtension extends \Twig_Extension
     public function getGrid($grid, $theme = null, $id = '', array $params = array())
     {
         $this->theme = $theme;
+
+        // Export
+        if (!is_array($theme)) {
+            $grid->setTemplate($theme);
+        }
+
         $this->names[$grid->getHash()] = $id == '' ? $grid->getId() : $id;
         $this->params = $params;
         $this->templates = array();
@@ -120,6 +145,11 @@ class DataGridExtension extends \Twig_Extension
     public function getGridActions($grid)
     {
         return $this->renderBlock('grid_actions', array('grid' => $grid));
+    }
+
+    public function getGridExports($grid)
+    {
+        return $this->renderBlock('grid_exports', array('grid' => $grid));
     }
 
     /**
@@ -265,7 +295,7 @@ class DataGridExtension extends \Twig_Extension
             }
         }
 
-        throw new \InvalidArgumentException(sprintf('Block "%s" doesn\'t exist in grid template "%s".', $name, $this->theme));
+        throw new \InvalidArgumentException(sprintf('Block "%s" doesn\'t exist in grid template "%s".', $name, 'ee'));
     }
 
     /**
@@ -298,21 +328,25 @@ class DataGridExtension extends \Twig_Extension
         if (empty($this->templates))
         {
             //get template name
-            if ($this->theme instanceof \Twig_Template)
+            if (is_array($this->theme)) // Export
+            {
+                foreach ($this->theme as $theme)
+                {
+                    if ($theme instanceof \Twig_Template) {
+                        $this->templates[] = $theme;
+                    } elseif (is_string($theme)) {
+                        $this->templates = array_merge($this->templates, $this->getTemplatesFromString($theme));
+                    }
+                }
+            }
+            elseif ($this->theme instanceof \Twig_Template)
             {
                 $this->templates[] = $this->theme;
                 $this->templates[] = $this->environment->loadTemplate($this::DEFAULT_TEMPLATE);
             }
             elseif (is_string($this->theme))
             {
-                $template = $this->environment->loadTemplate($this->theme);
-                while ($template != null)
-                {
-                    $this->templates[] = $template;
-                    $template = $template->getParent(array());
-                }
-
-                $this->templates[] = $this->environment->loadTemplate($this->theme);
+                $this->templates = $this->getTemplatesFromString($this->theme);
             }
             elseif (is_null($this->theme))
             {
@@ -327,8 +361,25 @@ class DataGridExtension extends \Twig_Extension
         return $this->templates;
     }
 
+    private function getTemplatesFromString($theme)
+    {
+        $this->templates = array();
+
+        $template = $this->environment->loadTemplate($theme);
+        while ($template != null)
+        {
+            $this->templates[] = $template;
+            $template = $template->getParent(array());
+        }
+
+        $this->templates[] = $this->environment->loadTemplate($theme);
+
+        return $this->templates;
+    }
+
     public function getName()
     {
         return 'datagrid_twig_extension';
     }
 }
+

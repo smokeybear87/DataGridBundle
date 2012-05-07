@@ -32,7 +32,16 @@ class MassActionColumn extends Column
     {
         return '<input type="checkbox" class="action" value="1" name="'.$this->gridHash.'['.self::ID.']['.$row->getPrimaryFieldValue().']"/>';
     }
-	    
+
+    public function isVisible($isExported = false)
+    {
+        if ($isExported) {
+            return false;
+        }
+
+        return parent::isVisible();
+    }
+
     public function getType()
     {
         return 'massaction';

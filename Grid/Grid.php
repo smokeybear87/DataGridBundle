@@ -13,6 +13,7 @@
 namespace Sorien\DataGridBundle\Grid;
 
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\Exception\PropertyAccessDeniedException;
 
 use Sorien\DataGridBundle\Grid\Action\MassActionInterface;
@@ -28,9 +29,11 @@ class Grid
 {
     const REQUEST_QUERY_MASS_ACTION_ALL_KEYS_SELECTED = '__action_all_keys';
     const REQUEST_QUERY_MASS_ACTION = '__action_id';
+    const REQUEST_QUERY_EXPORT = '__export_id';
     const REQUEST_QUERY_PAGE = '_page';
     const REQUEST_QUERY_LIMIT = '_limit';
     const REQUEST_QUERY_ORDER = '_order';
+    const REQUEST_QUERY_TEMPLATE = '_template';
 
     /**
      * @var \Symfony\Component\HttpFoundation\Session;
@@ -143,6 +146,23 @@ class Grid
     private $noResultMessage;
 
     /**
+     * @var \Sorien\DataGridBundle\Grid\Export\Export[]
+     */
+    private $exports;
+
+    /**
+     * @var boolean
+     */
+    private $isReadyForExport = false;
+
+    /**
+     * @var \Response
+     */
+    private $exportResponse;
+
+    private $template;
+
+    /**
      * @param \Symfony\Component\DependencyInjection\Container $container
      * @param \Source\Source $source Data Source
      */
@@ -168,6 +188,7 @@ class Grid
         $this->columns = new Columns($container->get('security.context'));
         $this->massActions = array();
         $this->rowActions = array();
+        $this->exports = array();
 
         $this->routeParameters = $this->request->attributes->all();
         unset($this->routeParameters['_route']);
@@ -232,6 +253,9 @@ class Grid
 
         //execute massActions
         $this->executeMassActions();
+
+        //execute exports
+        $this->executeExports();
 
         //store grid data
         $this->fetchAndSaveGridData();
@@ -393,6 +417,54 @@ class Grid
                 throw new \OutOfBoundsException(sprintf('Action %s is not defined.', $actionId));
             }
         }
+    }
+
+    public function executeExports()
+    {
+        $exportId = $this->getDataFromContext(Grid::REQUEST_QUERY_EXPORT, true, false);
+
+        if ($exportId > -1)
+        {
+            if (array_key_exists($exportId, $this->exports))
+            {
+                $export = $this->exports[$exportId];
+                $this->isReadyForExport = true;
+
+                $this->page = 0;
+                $this->limit = 10;
+                $this->prepare();
+
+                $content = $this->container->get('twig')->loadTemplate($export->getTemplate())->renderBlock('grid_export', array('grid' => $this, 'export' => $export->getParameters()));
+
+                if (function_exists('mb_strlen')) {
+                    $filesize = mb_strlen($content, $this->container->getParameter('kernel.charset'));
+                } else {
+                    $filesize = strlen($content);
+                }
+
+                $headers = [
+                    'Content-Description' => 'File Transfer',
+                    'Content-Type' => 'application/octet-stream',
+                    'Content-Disposition' => sprintf('attachment; filename="%s"', $export->getBaseName()),
+                    'Content-Transfer-Encoding' => 'binary',
+                    'Expires' => '0',
+                    'Cache-Control' => 'must-revalidate',
+                    'Pragma' => 'public',
+                    'Content-Length' => $filesize
+                ];
+
+                $this->exportResponse = new Response($content, 200, $headers);
+            }
+            else
+            {
+                throw new \OutOfBoundsException(sprintf('Export %s is not defined.', $exportId));
+            }
+        }
+    }
+
+    public function getExportResponse()
+    {
+        return $this->exportResponse;
     }
 
     /**
@@ -584,6 +656,70 @@ class Grid
         return $this->rowActions;
     }
 
+
+
+    /**
+     * Returns template
+     *
+     * @return Twig_Template
+     */
+    public function getTemplate()
+    {
+        return $this->getDataFromContext(self::REQUEST_QUERY_TEMPLATE, false, true);
+    }
+
+    /**
+     * Adds template
+     *
+     * @param Export $template
+     * @return Grid
+     */
+    public function setTemplate($template)
+    {
+        $storage = $this->session->get($this->getHash());
+
+        if ($template instanceof \Twig_Template)
+        {
+            $template = $template->getTemplateName();
+        }
+        elseif (!is_string($template) && is_null($template)) {
+            throw new \Exception('Unable to load template');
+        }
+
+        $storage[self::REQUEST_QUERY_TEMPLATE] = $template;
+
+        $this->session->set($this->getHash(), $storage);
+
+        return $this;
+    }
+
+    /**
+     * Adds Export
+     *
+     * @param Export $export
+     * @return Grid
+     */
+    public function addExport($export)
+    {
+        if ($this->source instanceof Source)
+        {
+            throw new \RuntimeException('The exports have to be defined before the source.');
+        }
+        $this->exports[] = $export;
+
+        return $this;
+    }
+
+    /**
+     * Returns Export
+     *
+     * @return Export[]
+     */
+    public function getExports()
+    {
+        return $this->exports;
+    }
+
     /**
      * Sets Route Parameters
      *
@@ -628,6 +764,11 @@ class Grid
         $data = $this->request->get($this->getHash());
 
         return !empty($data);
+    }
+
+    public function isReadyForExport()
+    {
+        return $this->isReadyForExport;
     }
 
     public function createHash()

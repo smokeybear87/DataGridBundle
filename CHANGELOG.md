@@ -1,6 +1,7 @@
 `5 May 2012`
 
  * Allow extended Grid class
+ * Fix bug - Templates are not reset for each grid displayed
 
 `3 May 2012`
 

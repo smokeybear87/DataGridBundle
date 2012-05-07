@@ -53,6 +53,15 @@ class ActionsColumn extends Column
         $this->rowActions = $rowActions;
     }
 
+    public function isVisible($isExported = false)
+    {
+        if ($isExported) {
+            return false;
+        }
+
+        return parent::isVisible();
+    }
+
     public function getType()
     {
         return 'actions';
