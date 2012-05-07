@@ -79,25 +79,7 @@ class DataGridExtension extends \Twig_Extension
             'grid_exports'      => new \Twig_Function_Method($this, 'getGridExports', array('is_safe' => array('html'))),
         );
     }
-/*
-    public function getFilters()
-    {
-        return array(
-                'convertHTMLtoDSV' => new \Twig_Filter_Method($this, 'convertHTMLtoDSV'),
-        );
-    }
 
-    public function convertHTMLtoDSV($value)
-    {
-        $value = trim($value);
-        $value = preg_replace('/>[\s\n\t\r]*</', '><', $value);
-        $value = str_replace('</th>', '</th>;', $value);
-        $value = str_replace('</td>', '</td>;', $value);
-        $value = str_replace('</tr>', "</tr>\n", $value);
-        $value = strip_tags($value);
-        return $value;
-    }
-*/
     /**
      * Render grid block
      *
