@@ -77,6 +77,10 @@ class GridTypeGuesser implements FormTypeGuesserInterface
    public function guessMinLength($class, $property)
    {
    }
+   
+   public function guessPattern($class, $property)
+   {
+   }
 
    protected function isMappedClass($class)
    {
